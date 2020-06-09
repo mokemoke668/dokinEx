@@ -3,22 +3,49 @@ package yaml;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 
 import org.yaml.snakeyaml.Yaml;
 
-import common.Folder;
+import common.SettingFolders;
 
 public class YamlControl {
 
-	// yamlファイル読み込み
-	public static Folder yamlRead(String path) throws IOException {
+	private Path readPath;
 
-		Yaml yaml = new Yaml();
+	/**
+	 * コンストラクタ
+	 * @param path
+	 */
+	public YamlControl(Path path) {
+		this.readPath = path;
+	}
 
-    	try(InputStream in = Files.newInputStream(Paths.get(path))) {
-    		Folder folder = yaml.loadAs(in, Folder.class);
-        	return folder;
+	/**
+	 * YAMLファイル読み込み
+	 * @return
+	 * @throws IOException
+	 */
+	public SettingFolders yamlRead() throws IOException {
+
+		SettingFolders folder = new SettingFolders();
+
+		if(pathExistsJudge()) {
+
+			Yaml yaml = new Yaml();
+			try (InputStream in = Files.newInputStream(readPath)) {
+				folder = yaml.loadAs(in, SettingFolders.class);
+			}
 		}
+
+		return folder;
+	}
+
+	/**
+	 * Pathの存在チェック（ture:存在、false：存在していない）
+	 * @return
+	 */
+	private boolean pathExistsJudge(){
+		return Files.exists(readPath);
 	}
 }

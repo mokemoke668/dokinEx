@@ -1,0 +1,4 @@
+inDirectory: "./debug/in/"
+outDirectory: "./debug/out/"
+inputDirectory: "./debug/input/"
+outputDirectory: "./debug/output/"

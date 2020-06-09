@@ -3,11 +3,231 @@
  */
 package tdd;
 
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.*;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 import org.junit.jupiter.api.Test;
 
-class AppTest {
-    @Test void appHasAGreeting() {
-        App classUnderTest = new App();
-        //assertNotNull(classUnderTest.getGreeting(), "app should have a greeting");
-    }
+import common.FolderControl;
+import common.SettingFolders;
+import yaml.YamlControl;
+
+public class AppTest {
+
+	private final Path LOAD_PATH = Paths.get("./debug/path.yml"); // ロート対象のYAMLファイル
+	private final Path LOAD_EMPTY = Paths.get("./debug/empty.yml"); // 各パラメータが空のYAMLファイル
+	private final Path LOAD_ERROR = Paths.get("./debug/noexist.yml"); // 存在しないYAMLファイル
+
+	private final String ERROR_FILE_NAME = "err.xml";
+
+	private final String IN_DIRECTORY = "./debug/in/";         //INフォルダパス
+	private final String INPUT_DIRECTORY = "./debug/input/";   //OUTフォルダパス
+	private final String OUT_DIRECTORY = "./debug/out/";       //INPUTフォルダパス
+	private final String OUTPUT_DIRECTORY = "./debug/output/"; //OUTPUTフォルダパス
+
+	@Test
+	public void YAML設定ファイル読み込み() throws Exception {
+
+		YamlControl yamlControl = null;
+		SettingFolders folder = null;
+
+		// people.yml設定ファイルが存在しない場合、各パラメータがNULLであること。
+		yamlControl = new YamlControl(LOAD_ERROR);
+		folder = yamlControl.yamlRead();
+		assertThat(folder.getInDirectory(),is(nullValue()));
+		assertThat(folder.getInputDirectory(),is(nullValue()));
+		assertThat(folder.getOutDirectory(),is(nullValue()));
+		assertThat(folder.getOutputDirectory(),is(nullValue()));
+		assertThat(folder.directoryPathJudge(),is(false));
+
+		// people.yml設定ファイルが存在し、各パラメータの設定値が空である場合。
+		yamlControl = new YamlControl(LOAD_EMPTY);
+		folder = yamlControl.yamlRead();
+		assertThat(folder.getInDirectory(),is(""));
+		assertThat(folder.getInputDirectory(),is(""));
+		assertThat(folder.getOutDirectory(),is(""));
+		assertThat(folder.getOutputDirectory(),is(""));
+		assertThat(folder.directoryPathJudge(),is(false));
+
+		// people.yml設定ファイルが存在し、各パラメータがすべて設定されている場合、設定ファイルの値が正しく設定されていること。
+		// ・Pathクラスで取得するgetterが正しく動作すること
+		yamlControl = new YamlControl(LOAD_PATH);
+		folder = yamlControl.yamlRead();
+		assertThat(folder.getInDirectory(),is(IN_DIRECTORY));
+		assertThat(folder.getInputDirectory(),is(INPUT_DIRECTORY));
+		assertThat(folder.getOutDirectory(),is(OUT_DIRECTORY));
+		assertThat(folder.getOutputDirectory(),is(OUTPUT_DIRECTORY));
+
+		assertThat(folder.getInDirectoryPath(),is(Paths.get(IN_DIRECTORY)));
+		assertThat(folder.getInputDirectoryPath(),is(Paths.get(INPUT_DIRECTORY)));
+		assertThat(folder.getOutDirectoryPath(),is(Paths.get(OUT_DIRECTORY)));
+		assertThat(folder.getOutputDirectoryPath(),is(Paths.get(OUTPUT_DIRECTORY)));
+
+		assertThat(folder.directoryPathJudge(),is(true));
+
+	}
+
+	@Test
+	public void 各フォルダパスの設定状況チェック() throws Exception {
+
+		SettingFolders folder = new SettingFolders();
+
+		// inフォルダパスのみnullの場合
+		folder.setInputDirectory(INPUT_DIRECTORY);
+		folder.setOutDirectory(OUT_DIRECTORY);
+		folder.setOutputDirectory(OUTPUT_DIRECTORY);
+		assertThat(folder.directoryPathJudge(),is(false));
+
+		// inputフォルダパスのみnullの場合
+		folder = new SettingFolders();
+		folder.setInDirectory(IN_DIRECTORY);
+		folder.setOutDirectory(OUT_DIRECTORY);
+		folder.setOutputDirectory(OUTPUT_DIRECTORY);
+		assertThat(folder.directoryPathJudge(),is(false));
+
+		// outフォルダパスのみnullの場合
+		folder = new SettingFolders();
+		folder.setInDirectory(IN_DIRECTORY);
+		folder.setInputDirectory(INPUT_DIRECTORY);
+		folder.setOutputDirectory(OUTPUT_DIRECTORY);
+		assertThat(folder.directoryPathJudge(),is(false));
+
+		// outputフォルダパスのみnullの場合
+		folder = new SettingFolders();
+		folder.setInDirectory(IN_DIRECTORY);
+		folder.setInputDirectory(INPUT_DIRECTORY);
+		folder.setOutDirectory(OUT_DIRECTORY);
+		assertThat(folder.directoryPathJudge(),is(false));
+	}
+
+	@Test
+	public void フォルダコントロール関連チェック() throws Exception {
+
+		Path inPath = Paths.get(IN_DIRECTORY);
+		Path outputPath = Paths.get(OUTPUT_DIRECTORY);
+		Path inFileName = Paths.get(IN_DIRECTORY + "test.txt");
+		Path inputFileName = Paths.get(INPUT_DIRECTORY + "test.txt");
+		Path outFileName = Paths.get(OUT_DIRECTORY + "test.txt");
+		Path outputFileName = Paths.get(OUTPUT_DIRECTORY + "test.txt");
+
+		FolderControl folderControl = new FolderControl(inPath,outputPath);
+
+		// ■INフォルダの移動
+		// 正常系
+		Files.createFile(inputFileName);
+		assertThat(Files.exists(inputFileName),is(true));
+		assertThat(Files.exists(inFileName),is(false));
+		folderControl.moveFileIn(inputFileName, inputFileName.getFileName());
+		assertThat(Files.exists(inputFileName),is(false));
+		assertThat(Files.exists(inFileName),is(true));
+
+		// 異常系
+		Files.createFile(inputFileName);
+		assertThat(Files.exists(inputFileName),is(true));
+		assertThat(Files.exists(inFileName),is(true));
+		folderControl.moveFileIn(inputFileName, inputFileName.getFileName());
+		assertThat(Files.exists(inputFileName),is(true));
+		assertThat(Files.exists(inFileName),is(true));
+
+		// ■outputフォルダの移動
+		// 正常系
+		Files.createFile(outFileName);
+		assertThat(Files.exists(outFileName),is(true));
+		assertThat(Files.exists(outputFileName),is(false));
+		folderControl.moveFileOutput(outFileName, outFileName.getFileName());
+		assertThat(Files.exists(outFileName),is(false));
+		assertThat(Files.exists(outputFileName),is(true));
+
+		// 異常系
+		Files.createFile(outFileName);
+		assertThat(Files.exists(outFileName),is(true));
+		assertThat(Files.exists(outputFileName),is(true));
+		folderControl.moveFileOutput(outFileName, outFileName.getFileName());
+		assertThat(Files.exists(outFileName),is(true));
+		assertThat(Files.exists(outputFileName),is(true));
+
+		// ■ファイル削除処理
+		// 正常系
+		assertThat(Files.exists(inFileName),is(true));
+		assertThat(Files.exists(inputFileName),is(true));
+		assertThat(Files.exists(outFileName),is(true));
+		assertThat(Files.exists(outputFileName),is(true));
+		folderControl.deleteFile(inFileName);
+		folderControl.deleteFile(inputFileName);
+		folderControl.deleteFile(outFileName);
+		folderControl.deleteFile(outputFileName);
+		assertThat(Files.exists(inFileName),is(false));
+		assertThat(Files.exists(inputFileName),is(false));
+		assertThat(Files.exists(outFileName),is(false));
+		assertThat(Files.exists(outputFileName),is(false));
+
+		// 異常系
+		folderControl.deleteFile(inFileName);
+
+		// ■エラーファイルチェック
+		// ファイル名の末尾とエラーファイル名が同一かつ、ファイル名の文字数がエラーファイル名の文字数より大きい場合
+		assertThat(folderControl.errXmlJudge("test_err.xml",ERROR_FILE_NAME),is(true));
+
+		// ファイル名の末尾とエラーファイル名が同一かつ、ファイル名の文字数がエラーファイル名の文字数より大きくない場合
+		assertThat(folderControl.errXmlJudge("err.xml",ERROR_FILE_NAME),is(false));
+
+		// ファイル名の末尾とエラーファイル名が不一致の場合
+		assertThat(folderControl.errXmlJudge("test.xml",ERROR_FILE_NAME),is(false));
+	}
+
+	@Test
+	public void メイン() throws Exception {
+
+		Path inFileName = Paths.get(IN_DIRECTORY + "test.txt");
+		Path inputFileName = Paths.get(INPUT_DIRECTORY + "test.txt");
+		Path outFileName = Paths.get(OUT_DIRECTORY + "test.txt");
+		Path outputputFileName = Paths.get(OUTPUT_DIRECTORY + "test.txt");
+		Path outErrFileName = Paths.get(OUT_DIRECTORY + "test_err.xml");
+
+		// ■フォルダ監視ジョブ
+
+		// フォルダパス正当性チェックにかかるケース
+		// いずれかのフォルダのパスが設定されていない。
+		SettingFolders folder = new SettingFolders();
+		folder.setInputDirectory(INPUT_DIRECTORY);
+		folder.setOutDirectory(OUT_DIRECTORY);
+		folder.setOutputDirectory(OUTPUT_DIRECTORY);
+		App.folderSurveillance(folder);
+
+		// フォルダー監視エラー（inputフォルダのディレクトリが存在しない場合）
+		folder.setInDirectory(IN_DIRECTORY);
+		folder.setInputDirectory("./debug/inputTest/");
+		App.folderSurveillance(folder);
+
+		// フォルダー監視エラー（outフォルダのディレクトリが存在しない場合）
+		folder.setInputDirectory(INPUT_DIRECTORY);
+		folder.setOutDirectory("./debug/outTest/");
+		App.folderSurveillance(folder);
+
+		// ■インプットフォルダ監視テスト
+
+		// 正常ケース
+		Files.createFile(inputFileName);
+		App.inputFolderCheck(Paths.get(IN_DIRECTORY), Paths.get(INPUT_DIRECTORY));
+		Files.delete(inFileName);
+
+		// ■アウトプットフォルダ監視テスト
+
+		// 正常ケース
+		Files.createFile(outFileName);
+		App.outputFolderCheck(Paths.get(OUT_DIRECTORY), Paths.get(OUTPUT_DIRECTORY));
+		Files.delete(outputputFileName);
+
+		// エラーXMLが作成されるケース
+		Files.createFile(outErrFileName);
+		App.outputFolderCheck(Paths.get(OUT_DIRECTORY), Paths.get(OUTPUT_DIRECTORY));
+
+		// ■メイン
+		App.main(null);
+
+	}
 }

@@ -5,37 +5,59 @@ package tdd;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import common.Define;
-import common.Folder;
 import common.FolderControl;
+import common.SettingFolders;
 import yaml.YamlControl;
 
 public class App {
 
+	private static final Path LOAD_PATH = Paths.get("./debug/path.yml");
+	private static final String ERROR_FILE_NAME = "err.xml";
+
 	public static void main(String[] args) throws IOException {
 
-		Folder folder = YamlControl.yamlRead(Define.getloadPath());
+		YamlControl yamlControl = new YamlControl(LOAD_PATH);
+		SettingFolders folder = yamlControl.yamlRead();
+
+		// フォルダ監視処理
+		folderSurveillance(folder);
+	}
+
+	/**
+	 * フォルダ監視
+	 * @param folder
+	 */
+	public static void folderSurveillance(SettingFolders folder) {
+
+		// フォルダパス正当性チェック
+		if (!folder.directoryPathJudge()) {
+			System.out.println(LOAD_PATH + "の内容が不正です。");
+			return;
+		}
 
 		ScheduledExecutorService sche = Executors.newScheduledThreadPool(2);
 
 		sche.scheduleAtFixedRate(() -> {
 			try {
-				inputFolderCheck(folder);
+				inputFolderCheck(folder.getInDirectoryPath(), folder.getInputDirectoryPath());
 			} catch (IOException e) {
 				System.out.println("フォルダ監視処理でエラーが発生しました。");
+				sche.shutdownNow();
 			}
 		}, 0L, 5L, TimeUnit.SECONDS);
 
 		sche.scheduleAtFixedRate(() -> {
 			try {
-				outputFolderCheck(folder);
+				outputFolderCheck(folder.getOutDirectoryPath(), folder.getOutputDirectoryPath());
 			} catch (IOException e) {
 				System.out.println("フォルダ監視処理でエラーが発生しました。");
+				sche.shutdownNow();
 			}
 		}, 0L, 5L, TimeUnit.SECONDS);
 	}
@@ -45,19 +67,13 @@ public class App {
 	 * @param folder：Folderクラスのインスタンス
 	 * @throws IOException
 	 */
-	public static void inputFolderCheck(Folder folder) throws IOException {
+	public static void inputFolderCheck(Path inDirectory, Path inputDirectory) throws IOException {
 
-		Files.list(Paths.get(folder.getInDirectory())).filter(Files::isRegularFile).forEach(p -> {
-			if (p.equals(null)) {
-				return;
-			} else {
-				// inputフォルダにファイルを移す処理
-				try {
-					FolderControl.inToInput(p, Paths.get(folder.getInputDirectory()), p.getFileName());
-				} catch (IOException e) {
-					System.out.println("INフォルダのファイル制御に失敗しました。");
-				}
-			}
+		FolderControl folderCon = new FolderControl(inDirectory, null);
+
+		Files.list(inputDirectory).filter(Files::isRegularFile).forEach(p -> {
+			// inputフォルダにファイルを移す処理
+			folderCon.moveFileIn(p, p.getFileName());
 		});
 	}
 
@@ -66,22 +82,16 @@ public class App {
 	 * @param folder：Folderクラスのインスタンス
 	 * @throws IOException
 	 */
-	public static void outputFolderCheck(Folder folder) throws IOException {
+	public static void outputFolderCheck(Path outDirectory, Path outputDirectory) throws IOException {
 
-		Files.list(Paths.get(folder.getOutDirectory())).filter(Files::isRegularFile).forEach(p -> {
-			if (p.equals(null)) {
-				return;
+		FolderControl folderCon = new FolderControl(null, outputDirectory);
+
+		Files.list(outDirectory).filter(Files::isRegularFile).forEach(p -> {
+			// outputフォルダにファイルを移す処理
+			if (folderCon.errXmlJudge(p.getFileName().toString(), ERROR_FILE_NAME)) {
+				folderCon.deleteFile(p);
 			} else {
-				// outputフォルダにファイルを移す処理
-				try {
-					if (!FolderControl.errXmlCheck(p.getFileName().toString(), Define.getErrorPath())) {
-						FolderControl.deleteFile(p);
-					} else {
-						FolderControl.inToInput(p, Paths.get(folder.getOutputDirectory()), p.getFileName());
-					}
-				} catch (IOException e) {
-					System.out.println("OUTフォルダのファイル制御に失敗しました。");
-				}
+				folderCon.moveFileOutput(p, p.getFileName());
 			}
 		});
 	}

@@ -3,28 +3,56 @@ package common;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 public class FolderControl {
 
+	private Path inDir, outputDir;
+
+	public FolderControl(Path inDir, Path outputDir) {
+		this.inDir = inDir;
+		this.outputDir = outputDir;
+	}
+
 	/**
-	 * ファイル移動
-	 * @param filePath：コピー元ファイルパス
-	 * @param moveDirevtory：コピー先ディレクトリ
-	 * @param moveFileName：コピーファイル名
+	 * INフォルダへのファイル移動
+	 * @param filePath
+	 * @param destFileName
 	 * @throws IOException
 	 */
-	public static void inToInput(Path filePath, Path moveDirevtory, Path moveFileName) throws IOException {
-		Files.move(filePath, Paths.get(moveDirevtory.toString(), moveFileName.toString()));
+	public void moveFileIn(Path filePath, Path destFileName){
+		try {
+			Files.move(filePath, inDir.resolve(destFileName));
+		} catch (IOException e) {
+			System.out.println(destFileName + "のファイル移動に失敗しました。同名ファイルが存在している可能性があります。");
+		}
 	}
+
+	/**
+	 * Outputフォルダへのファイル移動
+	 * @param filePath
+	 * @param destFileName
+	 * @throws IOException
+	 */
+	public void moveFileOutput(Path filePath, Path destFileName){
+		try {
+			Files.move(filePath, outputDir.resolve(destFileName));
+		} catch (IOException e) {
+			System.out.println(destFileName + "のファイル移動に失敗しました。同名ファイルが存在している可能性があります。");
+		}
+	}
+
 
 	/**
 	 * ファイル削除
 	 * @param filePath：削除対象ファイルパス
 	 * @throws IOException
 	 */
-	public static void deleteFile(Path filePath) throws IOException {
-		Files.delete(filePath);
+	public void deleteFile(Path filePath){
+		try {
+			Files.delete(filePath);
+		} catch (IOException e) {
+			System.out.println(filePath + "の削除に失敗しました。");
+		}
 	}
 
 	/**
@@ -33,10 +61,10 @@ public class FolderControl {
 	 * @param errorFileName：エラーファイル名
 	 * @return
 	 */
-	public static boolean errXmlCheck(String fileName, String errorFileName) {
-		if(fileName.contains(errorFileName)) {
-			return false;
+	public boolean errXmlJudge(String fileName, String errorFileName) {
+		if(fileName.endsWith(errorFileName) && fileName.length() > errorFileName.length()) {
+			return true;
 		}
-		return true;
+		return false;
 	}
 }
